@@ -33,16 +33,16 @@ export function VoiceInput({ recordingState, onStart, onStop, disabled }: VoiceI
       disabled={disabled || isTranscribing}
       title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Record answer'}
       className={cn(
-        'flex-shrink-0 transition-all',
+        'flex-shrink-0 transition-all h-10 w-10',
         isRecording && 'animate-pulse',
       )}
     >
       {isTranscribing ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
+        <Loader2 className="w-5 h-5 animate-spin" />
       ) : isRecording ? (
-        <MicOff className="w-4 h-4" />
+        <MicOff className="w-5 h-5" />
       ) : (
-        <Mic className="w-4 h-4" />
+        <Mic className="w-5 h-5" />
       )}
     </Button>
   )
