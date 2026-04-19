@@ -115,10 +115,11 @@ class AIService {
     focusAreas: string[]
     candidateAnswer: string
     evaluation: { score: number; weaknesses: string[]; missing_points: string[] }
+    englishLevel?: string
     aiModel?: string
   }): Promise<AIBestAnswer> {
     return callAI(
-      buildBestAnswerSystemPrompt(),
+      buildBestAnswerSystemPrompt(params.englishLevel),
       buildBestAnswerUserPrompt(params),
       BestAnswerSchema,
       { task: 'generate_best_answer' },

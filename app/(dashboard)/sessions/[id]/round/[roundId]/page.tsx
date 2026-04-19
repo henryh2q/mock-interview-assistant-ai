@@ -64,8 +64,13 @@ export default function InterviewRoundPage() {
     `/api/sessions/${sessionId}/rounds`,
     fetcher,
   )
+  const { data: sessionData } = useSWR<{ session: { ai_model: string | null } }>(
+    `/api/sessions/${sessionId}`,
+    fetcher,
+  )
 
   const round = roundData?.rounds?.find((r) => r.id === roundId) as RoundWithData | undefined
+  const aiModel = sessionData?.session?.ai_model ?? undefined
 
   const {
     turns,
@@ -194,6 +199,7 @@ export default function InterviewRoundPage() {
                 evaluation={turn.evaluation}
                 bestAnswer={turn.bestAnswer}
                 isSaved={turn.isSaved}
+                aiModel={aiModel}
                 onSave={
                   isCompleted
                     ? undefined

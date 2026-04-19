@@ -47,6 +47,15 @@ export const BestAnswerSchema = z.object({
 
 export type AIBestAnswer = z.infer<typeof BestAnswerSchema>
 
+// ── Reading Guide ─────────────────────────────────────────────────────────────
+
+export const ReadingGuideSchema = z.object({
+  chunked_text: z.string().min(10),
+  tips: z.array(z.string()).min(1),
+})
+
+export type AIReadingGuide = z.infer<typeof ReadingGuideSchema>
+
 // ── Round Verdict ─────────────────────────────────────────────────────────────
 
 export const RoundVerdictSchema = z.object({

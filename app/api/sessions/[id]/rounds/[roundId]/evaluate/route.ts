@@ -94,6 +94,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         weaknesses: evaluation.weaknesses,
         missing_points: evaluation.missing_points,
       },
+      englishLevel: user?.english_level ?? 'intermediate',
       aiModel,
     })
 

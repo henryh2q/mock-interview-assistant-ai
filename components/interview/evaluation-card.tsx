@@ -5,22 +5,61 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScoreBadge } from '@/components/shared/score-badge'
 import { Evaluation } from '@/types/database'
-import { AIBestAnswer } from '@/types/ai'
-import { BookmarkCheck, BookmarkPlus, ChevronDown, ChevronUp, CheckCircle2, XCircle, Info, Lightbulb, Volume2, VolumeX, Loader2 } from 'lucide-react'
+import { AIBestAnswer, AIReadingGuide } from '@/types/ai'
+import {
+  BookmarkCheck, BookmarkPlus, ChevronDown, ChevronUp,
+  CheckCircle2, XCircle, Info, Lightbulb, Volume2, VolumeX,
+  Loader2, BookOpen, Mic,
+} from 'lucide-react'
 import { useVoice } from '@/hooks/useVoice'
+import { toast } from 'sonner'
 
 interface EvaluationCardProps {
   evaluation: Evaluation
   bestAnswer: AIBestAnswer
   isSaved?: boolean
   onSave?: () => void
+  aiModel?: string
 }
 
-export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: EvaluationCardProps) {
+export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave, aiModel }: EvaluationCardProps) {
   const [showBestAnswer, setShowBestAnswer] = useState(false)
+  const [showReadingGuide, setShowReadingGuide] = useState(false)
+  const [readingGuide, setReadingGuide] = useState<AIReadingGuide | null>(null)
+  const [loadingGuide, setLoadingGuide] = useState(false)
   const { playbackState, speak, stopSpeaking } = useVoice()
   const isPlaying = playbackState === 'playing'
   const isLoading = playbackState === 'loading'
+
+  const handlePracticeReading = async () => {
+    if (showReadingGuide) {
+      setShowReadingGuide(false)
+      return
+    }
+    if (readingGuide) {
+      setShowReadingGuide(true)
+      return
+    }
+    setLoadingGuide(true)
+    try {
+      const res = await fetch('/api/voice/reading-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: bestAnswer.best_answer, model: aiModel }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Failed to generate reading guide')
+        return
+      }
+      setReadingGuide(data)
+      setShowReadingGuide(true)
+    } catch {
+      toast.error('Failed to generate reading guide')
+    } finally {
+      setLoadingGuide(false)
+    }
+  }
 
   return (
     <Card className="border-l-4 border-l-primary">
@@ -124,6 +163,68 @@ export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: Eval
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Practice Reading button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full gap-1 border-violet-300 text-violet-700 hover:bg-violet-50"
+                onClick={handlePracticeReading}
+                disabled={loadingGuide}
+              >
+                {loadingGuide ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Generating guide...</>
+                ) : (
+                  <><Mic className="w-4 h-4" />{showReadingGuide ? 'Hide' : 'Practice'} Reading Guide</>
+                )}
+              </Button>
+
+              {/* Reading Guide panel */}
+              {showReadingGuide && readingGuide && (
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-semibold text-violet-700 flex items-center gap-1">
+                    <BookOpen className="w-3.5 h-3.5" /> How to read this aloud
+                  </p>
+
+                  <div>
+                    <p className="text-xs text-violet-600 mb-1.5">
+                      Read chunk by chunk. <code className="bg-violet-100 px-1 rounded">/</code> = short pause,{' '}
+                      <code className="bg-violet-100 px-1 rounded">//</code> = full stop. CAPS = stress that word.
+                    </p>
+                    <p className="text-sm text-violet-900 leading-relaxed font-mono whitespace-pre-wrap">
+                      {readingGuide.chunked_text}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold text-violet-700 mb-1.5">Reading tips:</p>
+                    <ul className="space-y-1.5">
+                      {readingGuide.tips.map((tip, i) => (
+                        <li key={i} className="text-sm text-violet-900 flex items-start gap-1.5">
+                          <span className="text-violet-500 font-bold mt-0.5">{i + 1}.</span> {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-1 text-violet-700 hover:bg-violet-100"
+                    onClick={() => speak(bestAnswer.best_answer)}
+                    disabled={isLoading || isPlaying}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                    Listen to correct pronunciation
+                  </Button>
                 </div>
               )}
 
