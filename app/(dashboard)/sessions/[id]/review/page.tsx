@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RoundPlan } from '@/types/ai'
-import { Round } from '@/types/database'
-import { ArrowRight, Loader2, RefreshCw, PlayCircle } from 'lucide-react'
+import { Round, Session } from '@/types/database'
+import { ArrowRight, Loader2, RefreshCw, PlayCircle, ChevronDown, ChevronUp, FileText, Briefcase } from 'lucide-react'
 import { RoundTypeBadge } from '@/components/shared/round-type-badge'
 import { RoundType } from '@/types/database'
 import { toast } from 'sonner'
@@ -23,6 +23,9 @@ export default function ReviewPlanPage() {
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [showJD, setShowJD] = useState(false)
+  const [showCV, setShowCV] = useState(false)
 
   const fetchPlan = useCallback(async () => {
     setLoading(true)
@@ -47,7 +50,13 @@ export default function ReviewPlanPage() {
     }
   }, [sessionId])
 
-  useEffect(() => { fetchPlan() }, [fetchPlan])
+  useEffect(() => {
+    fetchPlan()
+    fetch(`/api/sessions/${sessionId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.session) setSession(d.session) })
+      .catch(() => {})
+  }, [fetchPlan, sessionId])
 
   const removeRound = (index: number) => {
     if (plan.length <= 1) {
@@ -168,6 +177,67 @@ export default function ReviewPlanPage() {
             </Button>
           </div>
         </>
+      )}
+
+      {session && (
+        <div className="space-y-3 pt-2 border-t">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Session Documents</p>
+
+          {/* Job Description */}
+          <div className="rounded-xl border bg-white overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowJD((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Briefcase className="w-4 h-4 text-muted-foreground" />
+                Job Description
+              </div>
+              {showJD ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {showJD && (
+              <div className="px-4 pb-4 border-t">
+                <pre className="mt-3 text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
+                  {session.jd_text}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {/* CV */}
+          <div className="rounded-xl border bg-white overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowCV((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                CV / Resume
+              </div>
+              {showCV ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {showCV && (
+              <div className="px-4 pb-4 border-t">
+                <pre className="mt-3 text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
+                  {session.cv_text}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {session.extra_info && (
+            <div className="rounded-xl border bg-white overflow-hidden">
+              <div className="px-4 py-3 border-b">
+                <p className="text-sm font-medium">Extra Info</p>
+              </div>
+              <pre className="px-4 py-3 text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-60 overflow-y-auto">
+                {session.extra_info}
+              </pre>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
