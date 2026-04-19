@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { VoiceInput } from '@/components/interview/voice-input'
 import { useVoice } from '@/hooks/useVoice'
 import { Loader2, Send } from 'lucide-react'
+import { toast } from 'sonner'
 
 const MIN_LENGTH = 20
 const MAX_LENGTH = 2000
@@ -21,25 +22,40 @@ export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputPro
   const { recordingState, startRecording, stopRecording } = useVoice()
 
   const isRecordingOrTranscribing = recordingState !== 'idle'
-  const isTooShort = charCount < MIN_LENGTH
-  const isOverLimit = charCount > MAX_LENGTH
 
-  // Native event listeners for iOS Safari compatibility
+  const syncCount = useCallback(() => {
+    const val = textareaRef.current?.value ?? ''
+    setCharCount(val.trim().length)
+  }, [])
+
+  // Native event listeners — covers iOS Safari where React onChange can miss events
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
-    const update = () => setCharCount(el.value.trim().length)
-    el.addEventListener('input', update)
-    el.addEventListener('change', update)
+    el.addEventListener('input', syncCount)
+    el.addEventListener('change', syncCount)
+    el.addEventListener('keyup', syncCount)
+    el.addEventListener('compositionend', syncCount)
     return () => {
-      el.removeEventListener('input', update)
-      el.removeEventListener('change', update)
+      el.removeEventListener('input', syncCount)
+      el.removeEventListener('change', syncCount)
+      el.removeEventListener('keyup', syncCount)
+      el.removeEventListener('compositionend', syncCount)
     }
-  }, [])
+  }, [syncCount])
 
   const handleSubmit = () => {
+    // Always read directly from the DOM — never trust React state for the value
     const value = textareaRef.current?.value.trim() ?? ''
-    if (value.length < MIN_LENGTH || value.length > MAX_LENGTH || disabled) return
+    if (value.length < MIN_LENGTH) {
+      toast.warning(`Answer must be at least ${MIN_LENGTH} characters`)
+      return
+    }
+    if (value.length > MAX_LENGTH) {
+      toast.warning(`Answer must be under ${MAX_LENGTH} characters`)
+      return
+    }
+    if (disabled || isEvaluating) return
     onSubmit(value)
     if (textareaRef.current) textareaRef.current.value = ''
     setCharCount(0)
@@ -50,10 +66,12 @@ export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputPro
     if (transcript && textareaRef.current) {
       const sep = textareaRef.current.value.trim() ? ' ' : ''
       textareaRef.current.value += sep + transcript
-      setCharCount(textareaRef.current.value.trim().length)
+      syncCount()
     }
   }
 
+  const isOverLimit = charCount > MAX_LENGTH
+  const isTooShort = charCount < MIN_LENGTH
   const isDisabled = disabled || isEvaluating || isRecordingOrTranscribing
 
   return (
@@ -73,15 +91,15 @@ export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputPro
         <div className="flex items-center gap-3">
           <span
             className={`text-xs ${
-              isTooShort && charCount > 0
-                ? 'text-amber-600'
-                : isOverLimit
-                  ? 'text-destructive'
+              isOverLimit
+                ? 'text-destructive'
+                : isTooShort && charCount > 0
+                  ? 'text-amber-600'
                   : 'text-muted-foreground'
             }`}
           >
             {charCount}/{MAX_LENGTH}
-            {isTooShort && charCount > 0 && ` · min ${MIN_LENGTH} characters`}
+            {isTooShort && charCount > 0 && ` · min ${MIN_LENGTH} chars`}
           </span>
           <span className="text-xs text-muted-foreground hidden sm:block">⌘ + Enter to submit</span>
         </div>
@@ -94,9 +112,12 @@ export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputPro
             disabled={disabled || isEvaluating}
           />
 
+          {/* Button is never disabled by charCount — validation happens inside handleSubmit
+              so iOS users can always tap it and get a clear toast if too short */}
           <Button
+            type="button"
             onClick={handleSubmit}
-            disabled={disabled || isEvaluating || isTooShort || isOverLimit || isRecordingOrTranscribing}
+            disabled={disabled || isEvaluating || isRecordingOrTranscribing}
             size="sm"
             className="gap-1"
           >
