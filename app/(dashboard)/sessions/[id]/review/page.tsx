@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RoundPlan } from '@/types/ai'
 import { Round, Session } from '@/types/database'
-import { ArrowRight, Loader2, RefreshCw, PlayCircle, ChevronDown, ChevronUp, FileText, Briefcase } from 'lucide-react'
+import { ArrowRight, Loader2, RefreshCw, PlayCircle, ChevronDown, ChevronUp, FileText, Briefcase, Pencil, Check, X } from 'lucide-react'
 import { RoundTypeBadge } from '@/components/shared/round-type-badge'
 import { RoundType } from '@/types/database'
 import { toast } from 'sonner'
@@ -26,6 +26,9 @@ export default function ReviewPlanPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [showJD, setShowJD] = useState(false)
   const [showCV, setShowCV] = useState(false)
+  const [editingExtra, setEditingExtra] = useState(false)
+  const [extraDraft, setExtraDraft] = useState('')
+  const [savingExtra, setSavingExtra] = useState(false)
 
   const fetchPlan = useCallback(async () => {
     setLoading(true)
@@ -64,6 +67,35 @@ export default function ReviewPlanPage() {
       return
     }
     setPlan((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const startEditExtra = () => {
+    setExtraDraft(session?.extra_info ?? '')
+    setEditingExtra(true)
+  }
+
+  const cancelEditExtra = () => setEditingExtra(false)
+
+  const saveExtraInfo = async () => {
+    setSavingExtra(true)
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extra_info: extraDraft.trim() || null }),
+      })
+      if (!res.ok) {
+        toast.error('Failed to save extra info')
+        return
+      }
+      setSession((prev) => prev ? { ...prev, extra_info: extraDraft.trim() || null } : prev)
+      setEditingExtra(false)
+      toast.success('Extra info saved')
+    } catch {
+      toast.error('Network error')
+    } finally {
+      setSavingExtra(false)
+    }
   }
 
   const confirmPlan = async () => {
@@ -227,16 +259,49 @@ export default function ReviewPlanPage() {
             )}
           </div>
 
-          {session.extra_info && (
-            <div className="rounded-xl border bg-white overflow-hidden">
-              <div className="px-4 py-3 border-b">
-                <p className="text-sm font-medium">Extra Info</p>
+          <div className="rounded-xl border bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <p className="text-sm font-medium">Extra Info</p>
+              {!editingExtra && (
+                <button
+                  type="button"
+                  onClick={startEditExtra}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              )}
+            </div>
+            {editingExtra ? (
+              <div className="p-4 space-y-3">
+                <textarea
+                  autoFocus
+                  value={extraDraft}
+                  onChange={(e) => setExtraDraft(e.target.value)}
+                  placeholder="Add any extra context: target salary, preferred location, specific concerns..."
+                  className="w-full min-h-[120px] rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 resize-none"
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={cancelEditExtra} disabled={savingExtra}>
+                    <X className="w-4 h-4 mr-1" /> Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={saveExtraInfo} disabled={savingExtra} className="gap-1">
+                    {savingExtra ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Save
+                  </Button>
+                </div>
               </div>
+            ) : session.extra_info ? (
               <pre className="px-4 py-3 text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-60 overflow-y-auto">
                 {session.extra_info}
               </pre>
-            </div>
-          )}
+            ) : (
+              <p className="px-4 py-3 text-sm text-muted-foreground italic">
+                No extra info added. Click Edit to add context for the AI.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

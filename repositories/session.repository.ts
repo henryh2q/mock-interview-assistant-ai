@@ -83,6 +83,18 @@ export class SessionRepository {
     return data
   }
 
+  async updateExtraInfo(id: string, extraInfo: string | null): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('sessions')
+      .update({ extra_info: extraInfo, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      logger.error('SessionRepository.updateExtraInfo failed', error as Error, { id })
+      throw error
+    }
+  }
+
   async updateStatus(id: string, status: SessionStatus): Promise<void> {
     const { error } = await supabaseAdmin
       .from('sessions')
