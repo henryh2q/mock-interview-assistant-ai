@@ -30,7 +30,7 @@ export type AIQuestion = z.infer<typeof QuestionSchema>
 
 export const EvaluationSchema = z.object({
   score: z.number().int().min(1).max(10),
-  strengths: z.array(z.string()).min(1),
+  strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
   english_feedback: z.string(),
   missing_points: z.array(z.string()),
