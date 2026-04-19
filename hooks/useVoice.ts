@@ -111,6 +111,17 @@ export function useVoice(): UseVoiceReturn {
 
     setPlaybackState('loading')
 
+    // iOS Safari requires audio.play() to be called synchronously within a
+    // user gesture. We create and unlock the audio element immediately (before
+    // any await), then load the real src once the fetch completes.
+    const audio = new Audio()
+    audioRef.current = audio
+
+    // Unlock audio context on iOS by playing a silent data URL synchronously
+    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAA' +
+      'EAAQARKwAAESsAAAEACABkYXRhAAAAAA=='
+    audio.play().catch(() => {}) // intentionally silent; errors are fine here
+
     try {
       const res = await fetch('/api/voice/speak', {
         method: 'POST',
@@ -125,21 +136,19 @@ export function useVoice(): UseVoiceReturn {
         return
       }
 
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
+      const arrayBuffer = await res.arrayBuffer()
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((s, b) => s + String.fromCharCode(b), ''),
+      )
+      const dataUrl = `data:audio/mpeg;base64,${base64}`
 
-      const audio = new Audio(url)
-      audioRef.current = audio
-
-      audio.onended = () => {
-        URL.revokeObjectURL(url)
-        setPlaybackState('idle')
-      }
+      audio.onended = () => setPlaybackState('idle')
       audio.onerror = () => {
-        URL.revokeObjectURL(url)
+        toast.error('Playback failed. Please try again.')
         setPlaybackState('idle')
       }
 
+      audio.src = dataUrl
       setPlaybackState('playing')
       await audio.play()
     } catch {
