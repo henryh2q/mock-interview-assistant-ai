@@ -33,6 +33,21 @@ export async function GET(
     if (!session) throw new NotFoundError('Session')
     if (session.user_id !== auth.userId) throw new UnauthorizedError()
 
+    // If rounds already exist, return them as the confirmed plan (skip AI)
+    const existingRounds = await roundRepository.findBySessionId(id)
+    if (existingRounds.length > 0) {
+      const plan = {
+        rounds: existingRounds.map((r) => ({
+          type: r.type,
+          title: r.title,
+          duration_min: r.duration_min ?? 30,
+          question_count: r.question_count,
+          focus_areas: r.focus_areas,
+        })),
+      }
+      return NextResponse.json({ plan, confirmed: true, rounds: existingRounds })
+    }
+
     await rateLimitService.checkAICallLimit(auth.userId)
 
     const plan = await aiService.generateInterviewPlan({

@@ -34,6 +34,11 @@ export default function ReviewPlanPage() {
         setError(data.error ?? 'Failed to generate plan')
         return
       }
+      // Rounds already confirmed — skip straight to round picker
+      if (data.confirmed && data.rounds) {
+        setCreatedRounds(data.rounds)
+        return
+      }
       setPlan(data.plan.rounds)
     } catch {
       setError('Network error. Please try again.')
