@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { ScoreBadge } from '@/components/shared/score-badge'
 import { Evaluation } from '@/types/database'
 import { AIBestAnswer } from '@/types/ai'
-import { BookmarkCheck, BookmarkPlus, ChevronDown, ChevronUp, CheckCircle2, XCircle, Info, Lightbulb } from 'lucide-react'
+import { BookmarkCheck, BookmarkPlus, ChevronDown, ChevronUp, CheckCircle2, XCircle, Info, Lightbulb, Volume2, VolumeX, Loader2 } from 'lucide-react'
+import { useVoice } from '@/hooks/useVoice'
 
 interface EvaluationCardProps {
   evaluation: Evaluation
@@ -17,6 +18,9 @@ interface EvaluationCardProps {
 
 export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: EvaluationCardProps) {
   const [showBestAnswer, setShowBestAnswer] = useState(false)
+  const { playbackState, speak, stopSpeaking } = useVoice()
+  const isPlaying = playbackState === 'playing'
+  const isLoading = playbackState === 'loading'
 
   return (
     <Card className="border-l-4 border-l-primary">
@@ -71,6 +75,7 @@ export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: Eval
 
         <div>
           <Button
+            type="button"
             variant="outline"
             size="sm"
             className="w-full gap-1"
@@ -84,7 +89,26 @@ export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: Eval
           {showBestAnswer && (
             <div className="mt-3 space-y-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-xs font-semibold text-amber-700 mb-2">Suggested Best Answer</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-amber-700">Suggested Best Answer</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-amber-700 hover:text-amber-900 hover:bg-amber-100"
+                    disabled={isLoading}
+                    onClick={() => isPlaying ? stopSpeaking() : speak(bestAnswer.best_answer)}
+                    title={isPlaying ? 'Stop' : 'Listen to suggested answer'}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : isPlaying ? (
+                      <VolumeX className="w-3.5 h-3.5" />
+                    ) : (
+                      <Volume2 className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                </div>
                 <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap">
                   {bestAnswer.best_answer}
                 </p>
@@ -105,6 +129,7 @@ export function EvaluationCard({ evaluation, bestAnswer, isSaved, onSave }: Eval
 
               {onSave && (
                 <Button
+                  type="button"
                   variant={isSaved ? 'secondary' : 'outline'}
                   size="sm"
                   className="w-full gap-1"

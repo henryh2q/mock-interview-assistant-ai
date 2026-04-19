@@ -33,15 +33,17 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ saved_answer: existing, already_saved: true })
     }
 
-    const evaluation = await evaluationRepository.findByMessageId(evaluation_id)
+    const evaluation = await evaluationRepository.findById(evaluation_id)
     if (!evaluation || !evaluation.best_answer) throw new NotFoundError('Evaluation')
 
     const round = await roundRepository.findById(roundId)
     if (!round) throw new NotFoundError('Round')
 
-    // Get the candidate's answer from the message
+    // Get the candidate's answer — stored in the message whose id is evaluation.message_id
     const messages = await messageRepository.findByRoundId(roundId)
-    const candidateMsg = messages.find((m) => m.id === evaluation_id)
+    const candidateMsg = messages.find(
+      (m) => m.role === 'candidate' && m.question_index === messages.find((q) => q.id === evaluation.message_id)?.question_index
+    )
     const candidateAnswer = candidateMsg?.content ?? ''
 
     const savedAnswer = await savedAnswerRepository.create({

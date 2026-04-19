@@ -1,10 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // pdf-parse uses Node.js APIs — only run server-side
-  serverExternalPackages: ['pdf-parse'],
+  serverExternalPackages: ['unpdf'],
 
-  // Security headers
   async headers() {
     return [
       {

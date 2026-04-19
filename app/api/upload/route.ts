@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PDFParse } from 'pdf-parse'
 import { requireAuthSession } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { toApiError, ValidationError } from '@/lib/errors'
@@ -8,9 +7,9 @@ import { logger } from '@/lib/logger'
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: buffer })
-  const result = await parser.getText()
-  return result.text.trim()
+  const { extractText } = await import('unpdf')
+  const { text } = await extractText(new Uint8Array(buffer))
+  return (Array.isArray(text) ? text.join('\n') : text).trim()
 }
 
 export async function POST(req: NextRequest) {
@@ -48,7 +47,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Extract text using the new class-based PDFParse API
     let text = ''
     try {
       text = await extractTextFromPDF(buffer)

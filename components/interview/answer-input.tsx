@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { VoiceInput } from '@/components/interview/voice-input'
 import { useVoice } from '@/hooks/useVoice'
 import { Loader2, Send } from 'lucide-react'
@@ -17,40 +16,56 @@ interface AnswerInputProps {
 }
 
 export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputProps) {
-  const [answer, setAnswer] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [charCount, setCharCount] = useState(0)
   const { recordingState, startRecording, stopRecording } = useVoice()
 
-  const isTooShort = answer.trim().length < MIN_LENGTH
-  const isOverLimit = answer.length > MAX_LENGTH
   const isRecordingOrTranscribing = recordingState !== 'idle'
+  const isTooShort = charCount < MIN_LENGTH
+  const isOverLimit = charCount > MAX_LENGTH
+
+  // Native event listeners for iOS Safari compatibility
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const update = () => setCharCount(el.value.trim().length)
+    el.addEventListener('input', update)
+    el.addEventListener('change', update)
+    return () => {
+      el.removeEventListener('input', update)
+      el.removeEventListener('change', update)
+    }
+  }, [])
 
   const handleSubmit = () => {
-    if (isTooShort || isOverLimit || disabled) return
-    onSubmit(answer.trim())
-    setAnswer('')
+    const value = textareaRef.current?.value.trim() ?? ''
+    if (value.length < MIN_LENGTH || value.length > MAX_LENGTH || disabled) return
+    onSubmit(value)
+    if (textareaRef.current) textareaRef.current.value = ''
+    setCharCount(0)
   }
 
   const handleStopRecording = async () => {
     const transcript = await stopRecording()
-    if (transcript) {
-      setAnswer((prev) => {
-        const separator = prev.trim() ? ' ' : ''
-        return prev + separator + transcript
-      })
+    if (transcript && textareaRef.current) {
+      const sep = textareaRef.current.value.trim() ? ' ' : ''
+      textareaRef.current.value += sep + transcript
+      setCharCount(textareaRef.current.value.trim().length)
     }
   }
 
+  const isDisabled = disabled || isEvaluating || isRecordingOrTranscribing
+
   return (
     <div className="space-y-2">
-      <Textarea
+      <textarea
+        ref={textareaRef}
         placeholder="Type your answer or use the mic to speak..."
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        disabled={disabled || isEvaluating || isRecordingOrTranscribing}
+        disabled={isDisabled}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
         }}
-        className="min-h-[120px] resize-none"
+        className="flex min-h-[120px] w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 resize-none"
         maxLength={MAX_LENGTH + 50}
       />
 
@@ -58,15 +73,15 @@ export function AnswerInput({ onSubmit, disabled, isEvaluating }: AnswerInputPro
         <div className="flex items-center gap-3">
           <span
             className={`text-xs ${
-              isTooShort && answer.length > 0
+              isTooShort && charCount > 0
                 ? 'text-amber-600'
                 : isOverLimit
                   ? 'text-destructive'
                   : 'text-muted-foreground'
             }`}
           >
-            {answer.trim().length}/{MAX_LENGTH}
-            {isTooShort && answer.length > 0 && ` · min ${MIN_LENGTH} characters`}
+            {charCount}/{MAX_LENGTH}
+            {isTooShort && charCount > 0 && ` · min ${MIN_LENGTH} characters`}
           </span>
           <span className="text-xs text-muted-foreground hidden sm:block">⌘ + Enter to submit</span>
         </div>

@@ -4,6 +4,20 @@ import { AIEvaluation, AIRoundVerdict } from '@/types/ai'
 import { logger } from '@/lib/logger'
 
 export class EvaluationRepository {
+  async findById(id: string): Promise<Evaluation | null> {
+    const { data, error } = await supabaseAdmin
+      .from('evaluations')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      logger.error('EvaluationRepository.findById failed', error as Error, { id })
+      throw error
+    }
+    return data ?? null
+  }
+
   async findByMessageId(messageId: string): Promise<Evaluation | null> {
     const { data, error } = await supabaseAdmin
       .from('evaluations')

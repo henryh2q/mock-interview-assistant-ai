@@ -21,11 +21,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
     const roundsWithData = await Promise.all(
       rounds.map(async (round) => {
-        const [messages, result] = await Promise.all([
+        const [messages, evaluations, result] = await Promise.all([
           messageRepository.findByRoundId(round.id),
+          evaluationRepository.findByRoundId(round.id),
           evaluationRepository.findRoundResult(round.id),
         ])
-        return { ...round, messages, result }
+        return { ...round, messages, evaluations, result }
       }),
     )
 

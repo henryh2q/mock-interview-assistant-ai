@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RoundPlan } from '@/types/ai'
-import { ArrowRight, Loader2, RefreshCw } from 'lucide-react'
+import { Round } from '@/types/database'
+import { ArrowRight, Loader2, RefreshCw, PlayCircle } from 'lucide-react'
+import { RoundTypeBadge } from '@/components/shared/round-type-badge'
+import { RoundType } from '@/types/database'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -16,6 +19,7 @@ export default function ReviewPlanPage() {
   const router = useRouter()
 
   const [plan, setPlan] = useState<RoundPlan[]>([])
+  const [createdRounds, setCreatedRounds] = useState<Round[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,8 +65,7 @@ export default function ReviewPlanPage() {
         toast.error(data.error ?? 'Failed to confirm plan')
         return
       }
-      const firstRound = data.rounds[0]
-      router.push(`/sessions/${sessionId}/round/${firstRound.id}`)
+      setCreatedRounds(data.rounds)
     } catch {
       toast.error('Network error. Please try again.')
     } finally {
@@ -109,6 +112,30 @@ export default function ReviewPlanPage() {
             </Button>
           </AlertDescription>
         </Alert>
+      ) : createdRounds ? (
+        <>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">Choose which round to start first:</p>
+            {createdRounds.map((round, idx) => (
+              <button
+                key={round.id}
+                onClick={() => router.push(`/sessions/${sessionId}/round/${round.id}`)}
+                className="w-full flex items-center justify-between rounded-xl border bg-white px-5 py-4 text-left hover:border-primary hover:bg-primary/5 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-muted-foreground w-5">{idx + 1}</span>
+                  <div>
+                    <p className="font-semibold text-sm">{round.title}</p>
+                    <div className="mt-0.5">
+                      <RoundTypeBadge type={round.type as RoundType} />
+                    </div>
+                  </div>
+                </div>
+                <PlayCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+              </button>
+            ))}
+          </div>
+        </>
       ) : (
         <>
           <div className="space-y-3">
@@ -131,7 +158,7 @@ export default function ReviewPlanPage() {
               {confirming ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Setting up rounds...</>
               ) : (
-                <>Confirm & Start Round 1 <ArrowRight className="w-4 h-4" /></>
+                <>Confirm Plan <ArrowRight className="w-4 h-4" /></>
               )}
             </Button>
           </div>

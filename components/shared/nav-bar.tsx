@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Bot, BookOpen, LayoutDashboard, LogOut } from 'lucide-react'
+import { Bot, BookOpen, LayoutDashboard, LogOut, UserCircle } from 'lucide-react'
 
 export function NavBar() {
   const router = useRouter()
@@ -33,6 +33,12 @@ export function NavBar() {
             <Link href="/library">
               <BookOpen className="w-4 h-4 mr-1.5" />
               <span className="hidden sm:inline">Library</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/profile">
+              <UserCircle className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Profile</span>
             </Link>
           </Button>
           <Button

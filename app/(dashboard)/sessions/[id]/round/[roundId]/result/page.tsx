@@ -8,7 +8,7 @@ import { RoundTypeBadge } from '@/components/shared/round-type-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, XCircle, Zap } from 'lucide-react'
+import { CheckCircle2, XCircle, Zap, PlayCircle } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { RoundType, Round } from '@/types/database'
@@ -33,8 +33,7 @@ export default async function RoundResultPage({ params }: PageProps) {
   if (session.user_id !== auth.userId) redirect('/dashboard')
 
   const allRounds = await roundRepository.findBySessionId(sessionId)
-  const currentIndex = allRounds.findIndex((r) => r.id === roundId)
-  const nextRound = allRounds[currentIndex + 1] as Round | undefined
+  const pendingRounds = allRounds.filter((r) => r.id !== roundId && r.status !== 'completed') as Round[]
 
   const scoreLabel =
     (result.overall_score ?? 0) >= 9
@@ -144,22 +143,37 @@ export default async function RoundResultPage({ params }: PageProps) {
 
       <Separator />
 
+      {pendingRounds.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">Continue with another round:</p>
+          {pendingRounds.map((r, idx) => (
+            <Link
+              key={r.id}
+              href={`/sessions/${sessionId}/round/${r.id}`}
+              className="flex items-center justify-between rounded-xl border bg-white px-5 py-4 hover:border-primary hover:bg-primary/5 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-muted-foreground w-5">{idx + 1}</span>
+                <div>
+                  <p className="font-semibold text-sm">{r.title}</p>
+                  <div className="mt-0.5">
+                    <RoundTypeBadge type={r.type as RoundType} />
+                  </div>
+                </div>
+              </div>
+              <PlayCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+            </Link>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-3">
         <Button variant="outline" asChild className="flex-1">
           <Link href="/dashboard">End Session</Link>
         </Button>
-
-        {nextRound ? (
-          <Button asChild className="flex-1">
-            <Link href={`/sessions/${sessionId}/round/${nextRound.id}`}>
-              Start {nextRound.title}
-            </Link>
-          </Button>
-        ) : (
-          <Button asChild variant="secondary" className="flex-1">
-            <Link href={`/sessions/${sessionId}/history`}>View Full Session</Link>
-          </Button>
-        )}
+        <Button asChild variant="secondary" className="flex-1">
+          <Link href={`/sessions/${sessionId}/history`}>View Full Session</Link>
+        </Button>
       </div>
     </div>
   )

@@ -19,6 +19,7 @@ export interface UseInterviewReturn {
   isLoadingQuestion: boolean
   isEvaluating: boolean
   contextHint: string | null
+  initializeTurns: (initialTurns: InterviewTurn[]) => void
   fetchNextQuestion: (params: {
     sessionId: string
     roundId: string
@@ -51,6 +52,14 @@ export function useInterview(): UseInterviewReturn {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [isGeneratingVerdict, setIsGeneratingVerdict] = useState(false)
   const [contextHint, setContextHint] = useState<string | null>(null)
+
+  const initializeTurns = useCallback((initialTurns: InterviewTurn[]) => {
+    setTurns(initialTurns)
+    if (initialTurns.length > 0) {
+      const lastQuestion = initialTurns[initialTurns.length - 1].questionMessage
+      setCurrentQuestionIndex(lastQuestion.question_index ?? initialTurns.length - 1)
+    }
+  }, [])
 
   const fetchNextQuestion = useCallback(
     async (params: {
@@ -118,12 +127,23 @@ export function useInterview(): UseInterviewReturn {
           return
         }
 
+        const answerMessage: Message = {
+          id: data.candidate_message_id,
+          round_id: params.roundId,
+          session_id: params.sessionId,
+          role: 'candidate',
+          content: params.answer,
+          question_index: null,
+          created_at: new Date().toISOString(),
+        }
+
         setTurns((prev) => {
           const updated = [...prev]
           const last = updated[updated.length - 1]
           if (last) {
             updated[updated.length - 1] = {
               ...last,
+              answerMessage,
               evaluation: data.evaluation,
               bestAnswer: data.best_answer,
             }
@@ -214,6 +234,7 @@ export function useInterview(): UseInterviewReturn {
     isLoadingQuestion,
     isEvaluating,
     contextHint,
+    initializeTurns,
     fetchNextQuestion,
     submitAnswer,
     saveAnswer,
