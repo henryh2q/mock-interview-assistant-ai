@@ -93,25 +93,9 @@ function WordPronounce({ word }: { word: string }) {
   const [data, setData] = useState<PronunciationData | null>(null)
   const [loading, setLoading] = useState(false)
   const popoverId = useId()
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (
-        !btnRef.current?.contains(e.target as Node) &&
-        !popoverRef.current?.contains(e.target as Node)
-      ) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  const handleClick = useCallback(async () => {
-    if (open) { setOpen(false); return }
-    setOpen(true)
+  const fetchIfNeeded = useCallback(async () => {
     if (data) return
     setLoading(true)
     try {
@@ -120,37 +104,48 @@ function WordPronounce({ word }: { word: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word }),
       })
-      if (res.ok) {
-        const json = await res.json() as PronunciationData
-        setData(json)
-      }
+      if (res.ok) setData(await res.json() as PronunciationData)
     } finally {
       setLoading(false)
     }
-  }, [open, data, word])
+  }, [data, word])
+
+  const handleMouseEnter = useCallback(() => {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    setOpen(true)
+    void fetchIfNeeded()
+  }, [fetchIfNeeded])
+
+  const handleMouseLeave = useCallback(() => {
+    leaveTimerRef.current = setTimeout(() => setOpen(false), 200)
+  }, [])
+
+  useEffect(() => () => { if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current) }, [])
 
   return (
-    <span className="relative inline-block">
-      <button
-        ref={btnRef}
-        type="button"
+    <span
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <span
         aria-describedby={open ? popoverId : undefined}
-        onClick={handleClick}
-        className="inline-flex items-center gap-0.5 rounded px-0.5 hover:bg-black/8 transition-colors cursor-pointer underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+        className="rounded px-0.5 cursor-default underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
       >
         {word}
-        {playbackState === 'playing' && <Volume2 className="w-3 h-3 ml-0.5 opacity-60" />}
-      </button>
+        {playbackState === 'playing' && <Volume2 className="inline w-3 h-3 ml-0.5 opacity-60" />}
+      </span>
       {open && (
-        <div
+        <span
           id={popoverId}
-          ref={popoverRef}
           role="tooltip"
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-56 rounded-xl border bg-white shadow-lg p-3 space-y-2"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-56 rounded-xl border bg-white shadow-lg p-3 space-y-2 block"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           {/* Arrow */}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white" />
-          <div className="flex items-center justify-between gap-2">
+          <span className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white block" />
+          <span className="flex items-center justify-between gap-2">
             <span className="font-semibold text-sm truncate">{word}</span>
             <button
               type="button"
@@ -160,24 +155,24 @@ function WordPronounce({ word }: { word: string }) {
             >
               <Volume2 className="w-4 h-4 text-primary" />
             </button>
-          </div>
-          {loading && <div className="h-3 w-24 bg-black/6 rounded animate-pulse" />}
+          </span>
+          {loading && <span className="h-3 w-24 bg-black/6 rounded animate-pulse block" />}
           {!loading && data && (
-            <>
+            <span className="block space-y-1">
               {data.ipa && (
-                <p className="text-base font-mono text-primary tracking-wide">{data.ipa}</p>
+                <span className="block text-base font-mono text-primary tracking-wide">{data.ipa}</span>
               )}
               {data.syllables && (
-                <p className="text-xs text-muted-foreground">
+                <span className="block text-xs text-muted-foreground">
                   <span className="font-medium">Syllables:</span> {data.syllables}
-                </p>
+                </span>
               )}
               {data.example && (
-                <p className="text-xs text-muted-foreground italic">&ldquo;{data.example}&rdquo;</p>
+                <span className="block text-xs text-muted-foreground italic">&ldquo;{data.example}&rdquo;</span>
               )}
-            </>
+            </span>
           )}
-        </div>
+        </span>
       )}
     </span>
   )
@@ -186,11 +181,11 @@ function WordPronounce({ word }: { word: string }) {
 function AnswerText({ text }: { text: string }) {
   const parts = text.split(/(\s+)/)
   return (
-    <p className="text-sm leading-relaxed">
+    <div className="text-sm leading-relaxed">
       {parts.map((chunk, i) =>
         chunk.trim() ? <WordPronounce key={i} word={chunk} /> : <span key={i}>{chunk}</span>
       )}
-    </p>
+    </div>
   )
 }
 
