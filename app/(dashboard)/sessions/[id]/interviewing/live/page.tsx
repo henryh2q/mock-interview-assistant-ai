@@ -203,6 +203,12 @@ function LiveTokens({ tokens, pending }: { tokens: WordToken[]; pending: boolean
   )
 }
 
+const TIER_ROLE: Record<Tier, string> = {
+  quick:  'Say this first',
+  better: 'Then add this',
+  best:   'Then finish with',
+}
+
 function TierCard({ tier, state, tierLabel, modelLabel }: {
   tier: Tier; state: TierState; tierLabel: string; modelLabel: string
 }) {
@@ -214,9 +220,10 @@ function TierCard({ tier, state, tierLabel, modelLabel }: {
         <span className={`flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded ${meta.badge}`}>
           {meta.icon}{tierLabel}
         </span>
-        <span className="text-[11px] text-muted-foreground">{modelLabel}</span>
-        {state.loading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-        {tier === 'best' && !state.loading && state.answer && (
+        <span className="text-[11px] text-muted-foreground">{TIER_ROLE[tier]}</span>
+        <span className="text-[11px] text-muted-foreground/60">· {modelLabel}</span>
+        {state.loading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
+        {!state.loading && state.answer && (
           <span className="text-[11px] text-muted-foreground ml-auto">Tap word to pronounce</span>
         )}
       </div>
@@ -227,9 +234,7 @@ function TierCard({ tier, state, tierLabel, modelLabel }: {
           <div className="h-3 bg-black/6 rounded animate-pulse w-4/5" />
         </div>
       )}
-      {state.answer && (
-        tier === 'best' ? <AnswerText text={state.answer} /> : <p className="text-sm leading-relaxed">{state.answer}</p>
-      )}
+      {state.answer && <AnswerText text={state.answer} />}
     </div>
   )
 }

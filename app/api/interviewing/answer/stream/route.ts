@@ -12,6 +12,9 @@ import { z } from 'zod'
 //   { tier: TierName, model: string, answer: string }  — one tier resolved
 //   { tier: TierName, model: string, error: string }   — tier failed (non-fatal)
 //   { done: true }                                      — all tiers done
+//
+// Tiers run sequentially: Quick first, then Better extends Quick, then Best extends Better.
+// Each tier receives the previous tier's answer so responses build on each other.
 
 const HistoryItemSchema = z.object({
   question: z.string(),
@@ -48,10 +51,14 @@ function getXAI(): OpenAI {
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
+// Each tier instruction describes what to ADD relative to the previous tier's answer.
 const TIER_INSTRUCTIONS: Record<TierName, string> = {
-  quick:  '1-2 sentences only. Shortest viable answer the candidate can say immediately.',
-  better: '3-4 sentences. Clear, confident, uses specific CV details. Natural spoken prose.',
-  best:   '4-6 sentences. Best possible answer with full context depth. Reference prior answers if relevant. No bullet points.',
+  quick:
+    'Give a SHORT opening answer: 1-2 sentences only. State your core point immediately. The candidate will say this first to buy time.',
+  better:
+    'The candidate already said the Quick answer. Now ADD 2-3 sentences that sharpen the point: give a specific example, metric, or CV detail that backs up what was just said. Do NOT repeat the Quick answer — continue from it naturally.',
+  best:
+    'The candidate already said the Quick + Better answers. Now ADD 2-3 sentences of deeper insight: motivation, broader impact, a concise story, or connection to the role. Do NOT repeat anything already said — only add what makes the answer complete and memorable.',
 }
 
 function buildSystemPrompt(
@@ -60,6 +67,7 @@ function buildSystemPrompt(
   extraInfo: string | null | undefined,
   tier: TierName,
   history: Array<{ question: string; answer: string }>,
+  priorTierAnswer?: string,   // the answer from the previous tier, to build upon
 ): string {
   const historyBlock = history.length > 0
     ? `\nCONVERSATION SO FAR:\n${history.map((h, i) => `Q${i + 1}: ${h.question}\nA${i + 1}: ${h.answer}`).join('\n')}\n`
@@ -67,6 +75,10 @@ function buildSystemPrompt(
 
   const extraBlock = extraInfo?.trim()
     ? `\nADDITIONAL CONTEXT (stories, achievements, notes the candidate wants to reference):\n${extraInfo.trim().slice(0, 600)}\n`
+    : ''
+
+  const priorBlock = priorTierAnswer
+    ? `\nWHAT THE CANDIDATE ALREADY SAID:\n"${priorTierAnswer}"\n`
     : ''
 
   return `You are an expert interview coach. The candidate is in a LIVE interview RIGHT NOW.
@@ -77,13 +89,14 @@ Rules:
 - ${TIER_INSTRUCTIONS[tier]}
 - Draw on the candidate's actual CV background and any additional context provided
 - No markdown, no bullet points — pure prose
+- Output ONLY the words the candidate should speak next — nothing else
 
 CANDIDATE CV:
 ${cvText.slice(0, 1200)}
 
 JOB DESCRIPTION:
 ${jdText.slice(0, 800)}
-${extraBlock}${historyBlock}`
+${extraBlock}${priorBlock}${historyBlock}`
 }
 
 function buildUserPrompt(question: string): string {
@@ -169,26 +182,33 @@ export async function POST(req: NextRequest) {
       const abort = new AbortController()
       req.signal.addEventListener('abort', () => abort.abort())
 
-      // Each tier may have multiple models (fired concurrently within that tier).
-      // We race them — first to respond wins; the rest are ignored.
-      const tierPromises = tierAssignments.map(async ({ tier, models }) => {
-        const sys = buildSystemPrompt(session!.cv_text, session!.jd_text, session!.extra_info, tier, history)
-        const usr = buildUserPrompt(question)
+      // Tiers run sequentially: Quick → Better → Best.
+      // Each tier receives the previous tier's answer so it can extend rather than re-answer.
+      const usr = buildUserPrompt(question)
+      let priorAnswer: string | undefined
+
+      for (const { tier, models } of tierAssignments) {
+        if (abort.signal.aborted) break
+
+        const sys = buildSystemPrompt(
+          session!.cv_text, session!.jd_text, session!.extra_info,
+          tier, history, priorAnswer,
+        )
 
         try {
           // Race all models in this tier — fastest wins
           const answer = await Promise.any(
             models.map((m) => callModel(m, sys, usr, abort.signal))
           )
-          const winnerModel = models[0] // approximate; Promise.any doesn't tell us the winner
-          send({ tier, model: winnerModel, answer })
+          send({ tier, model: models[0], answer })
+          priorAnswer = priorAnswer ? `${priorAnswer} ${answer}` : answer
         } catch (err) {
-          if (abort.signal.aborted) return
+          if (abort.signal.aborted) break
           send({ tier, model: models[0], error: err instanceof Error ? err.message : 'Failed' })
+          // Don't update priorAnswer on failure — next tier falls back to the last good answer
         }
-      })
+      }
 
-      await Promise.allSettled(tierPromises)
       send({ done: true })
       controller.close()
     },
