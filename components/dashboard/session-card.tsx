@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Session } from '@/types/database'
 import { formatDate, truncate } from '@/lib/utils'
-import { CalendarDays, ChevronRight, Clock } from 'lucide-react'
+import { CalendarDays, Clock, BookOpen, Radio } from 'lucide-react'
 
 interface SessionCardProps {
   session: Session
@@ -22,13 +22,14 @@ export function SessionCard({
   const isCompleted = session.status === 'completed'
   const isActive = session.status === 'active'
 
-  const href =
-    isCompleted
-      ? `/sessions/${session.id}/history`
-      : `/sessions/${session.id}/review`
+  const practiceHref = isCompleted
+    ? `/sessions/${session.id}/history`
+    : `/sessions/${session.id}/review`
+
+  const interviewingHref = `/sessions/${session.id}/interviewing`
 
   return (
-    <Card className="hover:shadow-md transition-shadow group">
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base font-semibold leading-snug">
@@ -69,13 +70,21 @@ export function SessionCard({
         </div>
       </CardContent>
 
-      <CardFooter>
-        <Button asChild variant="outline" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-          <Link href={href}>
-            {isCompleted ? 'Review Session' : isActive ? 'Continue' : 'Set Up Interview'}
-            <ChevronRight className="w-4 h-4 ml-1" />
+      <CardFooter className="gap-2">
+        <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
+          <Link href={practiceHref}>
+            <BookOpen className="w-3.5 h-3.5" />
+            {isCompleted ? 'Review' : isActive ? 'Practice' : 'Set Up'}
           </Link>
         </Button>
+        {(isActive || isCompleted) && (
+          <Button asChild size="sm" className="flex-1 gap-1.5 bg-red-500 hover:bg-red-600 text-white">
+            <Link href={interviewingHref}>
+              <Radio className="w-3.5 h-3.5" />
+              Interviewing
+            </Link>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )
