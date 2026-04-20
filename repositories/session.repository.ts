@@ -95,6 +95,24 @@ export class SessionRepository {
     }
   }
 
+  async updateContent(id: string, fields: {
+    jd_text?: string
+    cv_text?: string
+    extra_info?: string | null
+    ai_model?: string | null
+    name?: string | null
+  }): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('sessions')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      logger.error('SessionRepository.updateContent failed', error as Error, { id })
+      throw error
+    }
+  }
+
   async updateStatus(id: string, status: SessionStatus): Promise<void> {
     const { error } = await supabaseAdmin
       .from('sessions')

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthSession } from '@/lib/auth'
 import { sessionRepository } from '@/repositories/session.repository'
-import { toApiError, NotFoundError, UnauthorizedError } from '@/lib/errors'
+import { toApiError, NotFoundError, UnauthorizedError, ValidationError } from '@/lib/errors'
+import { ALLOWED_MODEL_VALUES } from '@/lib/ai/providers'
+import { z } from 'zod'
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -27,6 +29,14 @@ export async function GET(
   }
 }
 
+const PatchSchema = z.object({
+  extra_info: z.string().max(500).nullable().optional(),
+  jd_text: z.string().min(50).optional(),
+  cv_text: z.string().min(50).optional(),
+  ai_model: z.enum(ALLOWED_MODEL_VALUES).nullable().optional(),
+  name: z.string().max(200).nullable().optional(),
+})
+
 export async function PATCH(
   req: NextRequest,
   { params }: RouteParams,
@@ -39,8 +49,13 @@ export async function PATCH(
     if (!session) throw new NotFoundError('Session')
     if (session.user_id !== auth.userId) throw new UnauthorizedError()
 
-    const { extra_info } = await req.json()
-    await sessionRepository.updateExtraInfo(id, extra_info ?? null)
+    const body = await req.json()
+    const parsed = PatchSchema.safeParse(body)
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.issues[0]?.message ?? 'Invalid input')
+    }
+
+    await sessionRepository.updateContent(id, parsed.data)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

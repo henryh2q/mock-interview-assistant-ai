@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 export type EventType =
   | 'user_login'
   | 'session_created'
+  | 'session_duplicated'
   | 'round_started'
   | 'round_completed'
   | 'answer_submitted'
