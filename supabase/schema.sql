@@ -199,3 +199,6 @@ alter table sessions add column if not exists interview_language varchar(20) not
 
 -- OTP: add verified_at to track OTP-verified logins (optional, for audit)
 -- No schema change needed — Twilio Verify handles OTP state externally.
+
+-- ── Migration: Prep Q&A cache ─────────────────────────────────────────────────
+alter table sessions add column if not exists prep_qa jsonb;

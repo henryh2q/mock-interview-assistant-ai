@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { Session, SessionStatus, SessionWithRounds } from '@/types/database'
+import { Session, SessionStatus, SessionWithRounds, PrepQAItem } from '@/types/database'
 import { logger } from '@/lib/logger'
 
 export interface CreateSessionInput {
@@ -123,6 +123,18 @@ export class SessionRepository {
 
     if (error) {
       logger.error('SessionRepository.updateStatus failed', error as Error, { id, status })
+      throw error
+    }
+  }
+
+  async updatePrepQA(id: string, items: PrepQAItem[]): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('sessions')
+      .update({ prep_qa: items, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      logger.error('SessionRepository.updatePrepQA failed', error as Error, { id })
       throw error
     }
   }

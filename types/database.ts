@@ -17,6 +17,12 @@ export interface User {
   updated_at: string
 }
 
+export interface PrepQAItem {
+  category: 'hr' | 'technical' | 'culture_fit'
+  question: string
+  answer: string
+}
+
 export interface Session {
   id: string
   user_id: string
@@ -30,6 +36,7 @@ export interface Session {
   ai_model: string | null
   shuffle_questions: boolean
   interview_language: InterviewLanguage
+  prep_qa: PrepQAItem[] | null
   created_at: string
   updated_at: string
 }

@@ -3,59 +3,59 @@
 import { useState, useRef, useCallback, useEffect, useId } from 'react'
 import { Volume2 } from 'lucide-react'
 import { useVoice } from '@/hooks/useVoice'
-import { getCached, prefetch, type PronunciationData } from '@/lib/pronunciation-cache'
+import { getCached, setCached, type PronunciationData } from '@/lib/pronunciation-cache'
 
 export function WordPronounce({ word }: { word: string }) {
   const { speak, playbackState } = useVoice()
   const [open, setOpen] = useState(false)
-  const [data, setData] = useState<PronunciationData | null>(() => getCached(word))
+  const [data, setData] = useState<PronunciationData | null>(null)
   const [loading, setLoading] = useState(false)
   const popoverId = useId()
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ref = useRef<HTMLSpanElement>(null)
 
-  // If cache fills in after mount (prefetch completed), sync state
+  // Close on outside click
   useEffect(() => {
-    const cached = getCached(word)
-    if (cached && !data) setData(cached)
-  })
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
-  const fetchIfNeeded = useCallback(async () => {
+  const handleClick = useCallback(async () => {
+    if (open) { setOpen(false); return }
+    setOpen(true)
+
     const cached = getCached(word)
     if (cached) { setData(cached); return }
+
     setLoading(true)
-    // prefetch() is idempotent — reuses the in-flight promise if already pending
-    prefetch(word)
     try {
       const res = await fetch('/api/pronunciation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word }),
       })
-      if (res.ok) setData(await res.json() as PronunciationData)
+      if (res.ok) {
+        const d = await res.json() as PronunciationData
+        setCached(word, d)
+        setData(d)
+      }
     } finally {
       setLoading(false)
     }
-  }, [word, data]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleMouseEnter = useCallback(() => {
-    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
-    setOpen(true)
-    // If already cached, no network call — instant display
-    const cached = getCached(word)
-    if (cached) { setData(cached) } else { void fetchIfNeeded() }
-  }, [word, fetchIfNeeded])
-
-  const handleMouseLeave = useCallback(() => {
-    leaveTimerRef.current = setTimeout(() => setOpen(false), 200)
-  }, [])
-
-  useEffect(() => () => { if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current) }, [])
+  }, [word, open])
 
   return (
-    <span className="relative inline-block" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <span ref={ref} className="relative inline-block">
       <span
+        role="button"
+        tabIndex={0}
         aria-describedby={open ? popoverId : undefined}
-        className="rounded px-0.5 cursor-default underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+        onClick={handleClick}
+        onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+        className="rounded px-0.5 cursor-pointer underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 hover:decoration-muted-foreground/70"
       >
         {word}
         {playbackState === 'playing' && <Volume2 className="inline w-3 h-3 ml-0.5 opacity-60" />}
@@ -65,8 +65,6 @@ export function WordPronounce({ word }: { word: string }) {
           id={popoverId}
           role="tooltip"
           className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-56 rounded-xl border bg-white shadow-lg p-3 space-y-2 block"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
         >
           <span className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white block" />
           <span className="flex items-center justify-between gap-2">
@@ -76,7 +74,7 @@ export function WordPronounce({ word }: { word: string }) {
               <Volume2 className="w-4 h-4 text-primary" />
             </button>
           </span>
-          {loading && !data && <span className="h-3 w-24 bg-black/6 rounded animate-pulse block" />}
+          {loading && <span className="h-3 w-24 bg-black/6 rounded animate-pulse block" />}
           {data && (
             <span className="block space-y-1">
               {data.ipa && <span className="block text-base font-mono text-primary tracking-wide">{data.ipa}</span>}

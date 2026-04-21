@@ -9,6 +9,7 @@ import { normalizePhone, isValidPhone } from '@/lib/utils'
 
 const LoginSchema = z.object({
   phone: z.string().min(1, 'Phone number is required'),
+  password: z.string().min(1, 'Password is required'),
 })
 
 export async function POST(req: NextRequest) {
@@ -18,6 +19,11 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       throw new ValidationError('Invalid request body')
+    }
+
+    const expectedPassword = process.env.LOGIN_PASSWORD
+    if (!expectedPassword || parsed.data.password !== expectedPassword) {
+      throw new ValidationError('Invalid password')
     }
 
     const phone = normalizePhone(parsed.data.phone)

@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Session } from '@/types/database'
-import { FileText, Briefcase, Bot, Loader2, Radio } from 'lucide-react'
+import { FileText, Briefcase, Bot, Loader2, Radio, Languages, Sparkles } from 'lucide-react'
 import { assignTiers, MODEL_OPTIONS, DEFAULT_MODEL } from '@/lib/ai/providers'
 import { EditableTextArea } from '@/components/shared/editable-textarea'
 import { CollapsibleSection } from '@/components/shared/collapsible-section'
 import { MultiModelPicker, TIER_ICONS, TIER_COLORS, loadStoredModels, saveStoredModels } from '@/components/shared/model-picker'
+import { LanguagePicker, LANGUAGE_LABELS } from '@/components/shared/language-picker'
 import { useSessionPatch } from '@/hooks/useSessionPatch'
+import { type InterviewLanguage } from '@/types/database'
+import { PrepQABlock } from '@/components/session/prep-qa-block'
 
 export default function InterviewingSetupPage() {
   const { id: sessionId } = useParams<{ id: string }>()
@@ -24,6 +27,8 @@ export default function InterviewingSetupPage() {
   const [showJD, setShowJD] = useState(false)
   const [showCV, setShowCV] = useState(false)
   const [showModel, setShowModel] = useState(true)
+  const [showLanguage, setShowLanguage] = useState(false)
+  const [showPrep, setShowPrep] = useState(false)
   const [selectedModels, setSelectedModels] = useState<string[]>([DEFAULT_MODEL])
   const [modelsLoaded, setModelsLoaded] = useState(false)
 
@@ -52,9 +57,13 @@ export default function InterviewingSetupPage() {
     if (modelsLoaded) saveStoredModels(sessionId, selectedModels)
   }, [selectedModels, sessionId, modelsLoaded])
 
-  const saveJD    = (jd_text: string)  => saveField({ jd_text }, 'Job description updated', 'Failed to save job description')
-  const saveCV    = (cv_text: string)  => saveField({ cv_text }, 'CV updated', 'Failed to save CV')
-  const saveExtra = (v: string)         => saveField({ extra_info: v || null }, 'Extra info saved', 'Failed to save extra info')
+  const saveJD       = (jd_text: string)             => saveField({ jd_text }, 'Job description updated', 'Failed to save job description')
+  const saveCV       = (cv_text: string)             => saveField({ cv_text }, 'CV updated', 'Failed to save CV')
+  const saveExtra    = (v: string)                    => saveField({ extra_info: v || null }, 'Extra info saved', 'Failed to save extra info')
+  const saveLanguage = async (interview_language: InterviewLanguage) => {
+    await saveField({ interview_language }, 'Language updated', 'Failed to update language')
+    setShowLanguage(false)
+  }
 
   const tierSummary = assignTiers(selectedModels)
     .map((t) => `${t.label}: ${t.models.map((m) => MODEL_OPTIONS.find((o) => o.value === m)?.label ?? m).join('+')}`)
@@ -108,6 +117,21 @@ export default function InterviewingSetupPage() {
           icon={<Bot className="w-4 h-4 text-muted-foreground shrink-0" />}
           title="AI Models" subtitle={tierSummary}>
           <MultiModelPicker selected={selectedModels} onChange={setSelectedModels} />
+        </CollapsibleSection>
+
+        <CollapsibleSection open={showLanguage} onToggle={() => setShowLanguage((v) => !v)}
+          icon={<Languages className="w-4 h-4 text-muted-foreground" />} title="Interview Language"
+          subtitle={LANGUAGE_LABELS[session.interview_language ?? 'english']}>
+          <LanguagePicker
+            value={(session.interview_language ?? 'english') as InterviewLanguage}
+            onChange={saveLanguage}
+          />
+        </CollapsibleSection>
+
+        <CollapsibleSection open={showPrep} onToggle={() => setShowPrep((v) => !v)}
+          icon={<Sparkles className="w-4 h-4 text-muted-foreground" />} title="Prep Q&A"
+          subtitle="Generate tailored questions & model answers">
+          <PrepQABlock sessionId={sessionId} language={session.interview_language ?? 'english'} />
         </CollapsibleSection>
 
         <CollapsibleSection open={showJD} onToggle={() => setShowJD((v) => !v)}

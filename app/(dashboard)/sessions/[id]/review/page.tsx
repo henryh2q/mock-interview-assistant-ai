@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RoundPlan } from '@/types/ai'
 import { Round, Session } from '@/types/database'
-import { ArrowRight, Loader2, RefreshCw, PlayCircle, FileText, Briefcase, X, Copy, Bot, Check, Languages } from 'lucide-react'
+import { ArrowRight, Loader2, RefreshCw, PlayCircle, FileText, Briefcase, X, Copy, Bot, Check, Languages, Sparkles } from 'lucide-react'
 import { RoundTypeBadge } from '@/components/shared/round-type-badge'
 import { RoundType } from '@/types/database'
 import { toast } from 'sonner'
@@ -20,6 +20,7 @@ import { ModelPicker } from '@/components/shared/model-picker'
 import { LanguagePicker, LANGUAGE_LABELS } from '@/components/shared/language-picker'
 import { useSessionPatch } from '@/hooks/useSessionPatch'
 import { type InterviewLanguage } from '@/types/database'
+import { PrepQABlock } from '@/components/session/prep-qa-block'
 
 export default function ReviewPlanPage() {
   const { id: sessionId } = useParams<{ id: string }>()
@@ -36,6 +37,7 @@ export default function ReviewPlanPage() {
   const [showCV, setShowCV] = useState(false)
   const [showModel, setShowModel] = useState(false)
   const [showLanguage, setShowLanguage] = useState(false)
+  const [showPrep, setShowPrep] = useState(false)
   const [showDuplicate, setShowDuplicate] = useState(false)
   const [dupModel, setDupModel] = useState(DEFAULT_MODEL)
   const [duplicating, setDuplicating] = useState(false)
@@ -224,6 +226,12 @@ export default function ReviewPlanPage() {
               value={(session.interview_language ?? 'english') as InterviewLanguage}
               onChange={saveLanguage}
             />
+          </CollapsibleSection>
+
+          <CollapsibleSection open={showPrep} onToggle={() => setShowPrep((v) => !v)}
+            icon={<Sparkles className="w-4 h-4 text-muted-foreground" />} title="Prep Q&A"
+            subtitle="Generate tailored questions & model answers">
+            <PrepQABlock sessionId={sessionId} language={session.interview_language ?? 'english'} />
           </CollapsibleSection>
 
           <CollapsibleSection open={showJD} onToggle={() => setShowJD((v) => !v)}

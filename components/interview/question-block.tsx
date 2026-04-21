@@ -7,6 +7,8 @@ import { TierCard, TIERS, EMPTY_TIER, LOADING_TIER, TIER_META, type Tier, type T
 export type { Tier, TierState }
 export { EMPTY_TIER, LOADING_TIER, TIERS, TIER_META }
 
+export type QuestionLanguage = 'english' | 'vietnamese'
+
 export interface QuestionBlock {
   id: number
   fullTranscript: string
@@ -14,10 +16,11 @@ export interface QuestionBlock {
   tiers: Record<Tier, TierState>
   blockHistory: Array<{ question: string; answer: string }>
   closed: boolean
+  language: QuestionLanguage
 }
 
 let blockIdCounter = 0
-export function newBlock(): QuestionBlock {
+export function newBlock(language: QuestionLanguage = 'english'): QuestionBlock {
   return {
     id: ++blockIdCounter,
     fullTranscript: '',
@@ -25,6 +28,7 @@ export function newBlock(): QuestionBlock {
     tiers: { quick: { ...EMPTY_TIER }, better: { ...EMPTY_TIER }, best: { ...EMPTY_TIER } },
     blockHistory: [],
     closed: false,
+    language,
   }
 }
 

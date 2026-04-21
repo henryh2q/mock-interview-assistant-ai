@@ -9,7 +9,7 @@ import { useAnswerStream } from '@/hooks/useAnswerStream'
 import { assignTiers, DEFAULT_MODEL, MODEL_OPTIONS } from '@/lib/ai/providers'
 import { Mic, MicOff, Monitor, Radio, Loader2, AlertCircle, X, Send, ArrowRight, BookOpen, CheckCircle2 } from 'lucide-react'
 import { TierCard, TIERS, type Tier } from '@/components/interview/tier-card'
-import { ClosedBlock, QuestionBlock, newBlock } from '@/components/interview/question-block'
+import { ClosedBlock, QuestionBlock, QuestionLanguage, newBlock } from '@/components/interview/question-block'
 import { loadStoredModels } from '@/components/shared/model-picker'
 
 function LiveTokens({ tokens, pending }: { tokens: WordToken[]; pending: boolean }) {
@@ -38,18 +38,19 @@ export default function LiveInterviewPage() {
   const selectedModelsRef = useRef(selectedModels)
   useEffect(() => { selectedModelsRef.current = selectedModels }, [selectedModels])
 
-  // Load interview language from session
-  const [language, setLanguage] = useState<string>('english')
-  const languageRef = useRef(language)
-  useEffect(() => { languageRef.current = language }, [language])
+  const sessionLanguageRef = useRef<QuestionLanguage>('english')
   useEffect(() => {
     fetch(`/api/sessions/${sessionId}`)
       .then((r) => r.json())
-      .then((d) => { if (d.session?.interview_language) setLanguage(d.session.interview_language as string) })
+      .then((d) => {
+        if (d.session?.interview_language) {
+          sessionLanguageRef.current = d.session.interview_language as QuestionLanguage
+        }
+      })
       .catch(() => {})
   }, [sessionId])
 
-  const [blocks, setBlocks] = useState<QuestionBlock[]>([newBlock()])
+  const [blocks, setBlocks] = useState<QuestionBlock[]>([newBlock(sessionLanguageRef.current)])
   const [useSystemAudio, setUseSystemAudio] = useState(false)
   const [isAnswering, setIsAnswering] = useState(false)
 
@@ -65,7 +66,7 @@ export default function LiveInterviewPage() {
   useEffect(() => { crossBlockHistoryRef.current = crossBlockHistory }, [crossBlockHistory])
 
   const { fetchAnswer, abort: abortStream } = useAnswerStream(
-    sessionId, blocksRef, crossBlockHistoryRef, selectedModelsRef, languageRef, setBlocks,
+    sessionId, blocksRef, crossBlockHistoryRef, selectedModelsRef, setBlocks,
   )
 
   const handleGetAnswer = useCallback((text: string) => {
@@ -91,7 +92,7 @@ export default function LiveInterviewPage() {
   }, [committedText])
 
   const handleStart = useCallback(async () => {
-    setBlocks([newBlock()])
+    setBlocks([newBlock(sessionLanguageRef.current)])
     prevCommittedRef.current = ''
     await start(useSystemAudio)
   }, [start, useSystemAudio])
@@ -103,7 +104,7 @@ export default function LiveInterviewPage() {
     clearTranscript()
     prevCommittedRef.current = ''
     if (isAnswering) { setIsAnswering(false); resume() }
-    setBlocks((prev) => [...prev.map((b, i) => i === prev.length - 1 ? { ...b, closed: true } : b), newBlock()])
+    setBlocks((prev) => [...prev.map((b, i) => i === prev.length - 1 ? { ...b, closed: true } : b), newBlock(sessionLanguageRef.current)])
   }, [abortStream, clearTranscript, isAnswering, resume])
 
   const handleManualGetAnswer = useCallback(() => {
@@ -250,6 +251,24 @@ export default function LiveInterviewPage() {
                   <Button size="sm" variant="default" onClick={handleManualGetAnswer} className="gap-1.5">
                     <Send className="w-3.5 h-3.5" /> Get Answer
                   </Button>
+                  <div className="flex items-center rounded-md border overflow-hidden text-xs font-medium">
+                    {(['english', 'vietnamese'] as QuestionLanguage[]).map((lang) => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => setBlocks((prev) => prev.map((b) =>
+                          b.id !== currentBlock?.id ? b : { ...b, language: lang }
+                        ))}
+                        className={`px-2 py-1 transition-colors ${
+                          currentBlock?.language === lang
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {lang === 'english' ? 'EN' : 'VI'}
+                      </button>
+                    ))}
+                  </div>
                   <Button size="sm" variant="outline" onClick={handleNextQuestion} className="gap-1.5 ml-auto">
                     Next Question <ArrowRight className="w-3.5 h-3.5" />
                   </Button>

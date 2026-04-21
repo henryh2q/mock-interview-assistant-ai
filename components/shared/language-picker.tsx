@@ -21,23 +21,17 @@ interface LanguagePickerProps {
 
 export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as InterviewLanguage)}
+      className="h-10 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+    >
       {OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-lg border px-3 py-3 text-left transition-colors ${
-            value === opt.value
-              ? 'border-primary bg-primary/5 text-primary'
-              : 'border-border hover:border-muted-foreground/40'
-          }`}
-        >
-          <p className="text-sm font-semibold">{opt.flag} {opt.label}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{opt.description}</p>
-        </button>
+        <option key={opt.value} value={opt.value}>
+          {opt.flag} {opt.label}
+        </option>
       ))}
-    </div>
+    </select>
   )
 }
 

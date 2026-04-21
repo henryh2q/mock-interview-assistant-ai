@@ -4,7 +4,6 @@ import { useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { EMPTY_TIER, LOADING_TIER, type Tier, type TierState } from '@/components/interview/tier-card'
 import { type QuestionBlock } from '@/components/interview/question-block'
-import { prefetchAnswer } from '@/lib/pronunciation-cache'
 
 interface SetBlocks {
   (updater: (prev: QuestionBlock[]) => QuestionBlock[]): void
@@ -15,7 +14,6 @@ export function useAnswerStream(
   blocksRef: React.MutableRefObject<QuestionBlock[]>,
   crossBlockHistoryRef: React.MutableRefObject<Array<{ question: string; answer: string }>>,
   selectedModelsRef: React.MutableRefObject<string[]>,
-  languageRef: React.MutableRefObject<string>,
   setBlocks: SetBlocks,
 ) {
   const streamAbortRef = useRef<AbortController | null>(null)
@@ -30,6 +28,7 @@ export function useAnswerStream(
 
     const currentBlock = blocksRef.current.find((b) => b.id === forBlockId)
     const history = [...crossBlockHistoryRef.current, ...(currentBlock?.blockHistory ?? [])]
+    const language = currentBlock?.language ?? 'english'
 
     setBlocks((prev) => prev.map((b) =>
       b.id !== forBlockId ? b : {
@@ -41,7 +40,7 @@ export function useAnswerStream(
     fetch('/api/interviewing/answer/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, question: q, history, models: selectedModelsRef.current, language: languageRef.current }),
+      body: JSON.stringify({ sessionId, question: q, history, models: selectedModelsRef.current, language }),
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -79,8 +78,6 @@ export function useAnswerStream(
                 ))
               } else if (payload.answer) {
                 snapshot[tier] = payload.answer
-                // Pre-fetch pronunciation for all words as soon as the answer arrives
-                prefetchAnswer(payload.answer)
                 setBlocks((prev) => prev.map((b) =>
                   b.id !== forBlockId ? b
                     : { ...b, tiers: { ...b.tiers, [tier]: { answer: payload.answer!, loading: false, error: null } as TierState } }
@@ -105,7 +102,7 @@ export function useAnswerStream(
           b.id !== forBlockId ? b : { ...b, tiers: { quick: EMPTY_TIER, better: EMPTY_TIER, best: EMPTY_TIER } }
         ))
       })
-  }, [sessionId, blocksRef, crossBlockHistoryRef, selectedModelsRef, languageRef, setBlocks])
+  }, [sessionId, blocksRef, crossBlockHistoryRef, selectedModelsRef, setBlocks])
 
   const abort = useCallback(() => { streamAbortRef.current?.abort() }, [])
 
