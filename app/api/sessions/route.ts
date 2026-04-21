@@ -18,6 +18,7 @@ const CreateSessionSchema = z.object({
   jd_file_path: z.string().optional().nullable(),
   cv_file_path: z.string().optional().nullable(),
   ai_model: z.enum(ALLOWED_MODEL_VALUES).optional().nullable(),
+  interview_language: z.enum(['english', 'vietnamese']).optional(),
   shuffle_questions: z.boolean().optional(),
 }).refine(
   (data) => data.cv_text.length >= 50 || data.cv_file_path,
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       throw new ValidationError(parsed.error.issues[0]?.message ?? 'Invalid input — please check your CV and JD')
     }
 
-    const { jd_text, cv_text, extra_info, name, jd_file_path, cv_file_path, ai_model, shuffle_questions } = parsed.data
+    const { jd_text, cv_text, extra_info, name, jd_file_path, cv_file_path, ai_model, interview_language, shuffle_questions } = parsed.data
 
     const sessionName =
       name || generateSessionName(extractJobTitle(jd_text))
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       jd_file_path,
       cv_file_path,
       ai_model: ai_model ?? null,
+      interview_language: interview_language ?? 'english',
       shuffle_questions: shuffle_questions ?? false,
     })
 

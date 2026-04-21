@@ -33,6 +33,8 @@ create table if not exists sessions (
                        check (status in ('draft','active','completed')),
   ai_model           varchar(50),
   shuffle_questions  boolean not null default false,
+  interview_language varchar(20) not null default 'english'
+                       check (interview_language in ('english','vietnamese')),
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
@@ -192,3 +194,8 @@ alter table daily_usage    enable row level security;
 -- Run this if the sessions table already exists (upgrading an existing DB):
 alter table sessions add column if not exists ai_model    varchar(50);
 alter table sessions add column if not exists shuffle_questions boolean not null default false;
+alter table sessions add column if not exists interview_language varchar(20) not null default 'english'
+  check (interview_language in ('english','vietnamese'));
+
+-- OTP: add verified_at to track OTP-verified logins (optional, for audit)
+-- No schema change needed — Twilio Verify handles OTP state externally.

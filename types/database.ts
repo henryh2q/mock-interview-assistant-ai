@@ -1,4 +1,5 @@
 export type EnglishLevel = 'beginner' | 'intermediate' | 'advanced'
+export type InterviewLanguage = 'english' | 'vietnamese'
 export type SessionStatus = 'draft' | 'active' | 'completed'
 export type RoundType = 'hr' | 'technical' | 'culture_fit'
 export type RoundStatus = 'pending' | 'active' | 'completed'
@@ -28,6 +29,7 @@ export interface Session {
   status: SessionStatus
   ai_model: string | null
   shuffle_questions: boolean
+  interview_language: InterviewLanguage
   created_at: string
   updated_at: string
 }

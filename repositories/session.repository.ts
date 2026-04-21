@@ -11,6 +11,7 @@ export interface CreateSessionInput {
   jd_file_path?: string | null
   cv_file_path?: string | null
   ai_model?: string | null
+  interview_language?: string
   shuffle_questions?: boolean
 }
 
@@ -70,6 +71,7 @@ export class SessionRepository {
         jd_file_path: input.jd_file_path,
         cv_file_path: input.cv_file_path,
         ai_model: input.ai_model ?? null,
+        interview_language: input.interview_language ?? 'english',
         shuffle_questions: input.shuffle_questions ?? false,
         status: 'draft',
       })

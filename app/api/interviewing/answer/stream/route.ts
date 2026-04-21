@@ -27,6 +27,7 @@ const BodySchema = z.object({
   history:   z.array(HistoryItemSchema).max(10).default([]),
   // Optional: client-selected model list. Falls back to session.ai_model if absent.
   models:    z.array(z.enum(ALLOWED_MODEL_VALUES)).min(1).max(8).optional(),
+  language:  z.enum(['english', 'vietnamese']).optional(),
 })
 
 // ── AI clients ────────────────────────────────────────────────────────────────
@@ -67,7 +68,8 @@ function buildSystemPrompt(
   extraInfo: string | null | undefined,
   tier: TierName,
   history: Array<{ question: string; answer: string }>,
-  priorTierAnswer?: string,   // the answer from the previous tier, to build upon
+  language: 'english' | 'vietnamese',
+  priorTierAnswer?: string,
 ): string {
   const historyBlock = history.length > 0
     ? `\nCONVERSATION SO FAR:\n${history.map((h, i) => `Q${i + 1}: ${h.question}\nA${i + 1}: ${h.answer}`).join('\n')}\n`
@@ -81,12 +83,17 @@ function buildSystemPrompt(
     ? `\nWHAT THE CANDIDATE ALREADY SAID:\n"${priorTierAnswer}"\n`
     : ''
 
+  const langInstruction = language === 'vietnamese'
+    ? '- Answer in Vietnamese — natural spoken Vietnamese, not formal written Vietnamese'
+    : '- Answer in English'
+
   return `You are an expert interview coach. The candidate is in a LIVE interview RIGHT NOW.
 Give a confident, natural-sounding answer they can say out loud immediately.
 
 Rules:
 - First person — you ARE the candidate
 - ${TIER_INSTRUCTIONS[tier]}
+- ${langInstruction}
 - Draw on the candidate's actual CV background and any additional context provided
 - No markdown, no bullet points — pure prose
 - Output ONLY the words the candidate should speak next — nothing else
@@ -162,7 +169,7 @@ export async function POST(req: NextRequest) {
     body = result.data
   } catch (error) { const e = toApiError(error); return new Response(JSON.stringify({ error: e.message }), { status: e.statusCode }) }
 
-  const { sessionId, question, history, models: clientModels } = body
+  const { sessionId, question, history, models: clientModels, language: clientLanguage } = body
 
   let session
   try {
@@ -170,9 +177,9 @@ export async function POST(req: NextRequest) {
     if (!session || session.user_id !== auth.userId) throw new NotFoundError('Session')
   } catch (error) { const e = toApiError(error); return new Response(JSON.stringify({ error: e.message }), { status: e.statusCode }) }
 
-  // Resolve the model list: client-provided takes priority, otherwise use session model
   const selectedModels = clientModels ?? [session.ai_model ?? 'openai/gpt-4o-mini']
   const tierAssignments = assignTiers(selectedModels)
+  const language = clientLanguage ?? (session.interview_language as 'english' | 'vietnamese' | undefined) ?? 'english'
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -192,7 +199,7 @@ export async function POST(req: NextRequest) {
 
         const sys = buildSystemPrompt(
           session!.cv_text, session!.jd_text, session!.extra_info,
-          tier, history, priorAnswer,
+          tier, history, language, priorAnswer,
         )
 
         try {
